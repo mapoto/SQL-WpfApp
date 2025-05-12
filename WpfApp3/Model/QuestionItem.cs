@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 
 public class QuestionItem
@@ -12,11 +13,11 @@ public class QuestionItem
 
     private string question;
 
-    private string[] choices;
+    private ObservableCollection<string> choices;
 
     private int solution;
 
-    public QuestionItem(int id, DateTime date, string question, string[] choices, int solution)
+    public QuestionItem(int id, DateTime date, string question, ObservableCollection<string> choices, int solution)
     {
         this.id = id;
         this.date = date;
@@ -29,11 +30,7 @@ public class QuestionItem
     public int Id { get => id; set => id = value; }
     public DateTime Date { get => date; set => date = value; }
     public string Question { get => question; set => question = value; }
-    public string[] Choices { get => choices; set => choices = value; }
+    public ObservableCollection<string> Choices { get => choices; set => choices = value; }
     public int Solution { get => solution; set => solution = value; }
 
-    public List<string> ChoicesAsList()
-    {
-        return [.. choices];
-    }
 }

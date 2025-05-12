@@ -7,26 +7,36 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid Background="LightGray">
-        <StackPanel Margin="20">
-            <Label Name="QuestionIdLabel" Content="Question Item ID"/>
-            <TextBox Name="QuestionIdTextBox" Text="{Binding SelectedQuestionItem.Id, UpdateSourceTrigger=PropertyChanged}"/>
-            <Label Name="DateLabel" Content="Date"/>
-            <TextBlock Name="DateTextBox" Text="{Binding SelectedQuestionItem.Date, UpdateSourceTrigger=PropertyChanged}"/>
-            <Label Name="QuestionLabel" Content="Question"/>
-            <TextBox Name="QuestionTextBox" Height="100" Text="{Binding SelectedQuestionItem.Question, UpdateSourceTrigger=PropertyChanged}"/>
-            <StackPanel Orientation="Horizontal">
-                <Label Name="OptionsLabel" Content="Options"/>
-                <Button Name ="Add" Content="+" />
-                <Button Name ="Delete" Content="-" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="30"/>
+        </Grid.RowDefinitions>
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Margin="20">
+                <Label Name="QuestionIdLabel" Content="Question Item ID"/>
+                <TextBox Name="QuestionIdTextBox" Text="{Binding SelectedQuestionItem.Id, UpdateSourceTrigger=PropertyChanged}"/>
+                <Label Name="DateLabel" Content="Date"/>
+                <TextBlock Name="DateTextBox" Text="{Binding SelectedQuestionItem.Date, UpdateSourceTrigger=PropertyChanged}"/>
+                <Label Name="QuestionLabel" Content="Question"/>
+                <TextBox Name="QuestionTextBox" Height="100" Text="{Binding SelectedQuestionItem.Question, UpdateSourceTrigger=PropertyChanged}"/>
+                <StackPanel Orientation="Horizontal">
+                    <Label Name="OptionsLabel" Content="Options"/>
+                    <Button Name ="Add" Content="+" Command="{Binding AddChoiceCommand}" />
+                    <Button Name ="Delete" Content="-" Command="{Binding DeleteChoiceCommand}" />
+                    <Button Name ="Edit" Content="Edit" Command="{Binding EditChoiceCommand}" IsEnabled="False"/>
+                </StackPanel>
+                <ListBox Name="OptionTextBox" ItemsSource="{Binding SelectedQuestionItem.Choices, UpdateSourceTrigger=PropertyChanged}" SelectedIndex="{Binding SelectedChoiceIndex}" SelectedItem="{Binding SelectedChoice}" SelectionChanged="OptionTextBox_SelectionChanged" />
+                <Label Name="SolutionLabel" Content="Solution"/>
+                <TextBox Name="SolutionTextBox" Text="{Binding SelectedQuestionItem.Solution, UpdateSourceTrigger=PropertyChanged}"/>
             </StackPanel>
-            <ListBox Name="OptionTextBox" ItemsSource="{Binding SelectedQuestionItem.Choices, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
-            <Label Name="SolutionLabel" Content="Solution"/>
-            <TextBox Name="SolutionTextBox" Text="{Binding SelectedQuestionItem.Solution, UpdateSourceTrigger=PropertyChanged}"/>
+        </ScrollViewer>
+
+        <Grid Grid.Row="1">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"  Width="Auto">
-                <Button Name="ModifyBtn" Content="Modify" Padding="5" IsEnabled="False" />
-                <Button Name="ResetBtn" Content="Reset"  Padding="5" IsEnabled="False"/>
-                <Button Name="RemoveBtn" Content="Remove" Padding="5" />
+                <Button Name="SaveBtn" Content="Save" Padding="5" IsEnabled="False" Command="{Binding SaveItemCommand}" />
+                <Button Name="ResetBtn" Content="Reset"  Padding="5" IsEnabled="False" Command="{Binding ResetItemCommand}"/>
+                <Button Name="RemoveBtn" Content="Remove" Padding="5" Command="{Binding RemoveItemCommand}" />
             </StackPanel>
-        </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>
