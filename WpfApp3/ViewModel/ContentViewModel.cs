@@ -14,7 +14,7 @@ namespace WpfApp3.ViewModel
 {
     internal class ContentViewModel:ViewModelBase
     {
-        private const string Json = """.\Resources\login.json""";
+        private const string Json = "Resources\\login.json";
 
         public ContentViewModel() {
 
@@ -189,8 +189,12 @@ namespace WpfApp3.ViewModel
 
         private void AddItem()
         {
-            ObservableCollection<string> strings = [""];
-            QuestionItem questionItem = new QuestionItem(id: QuestionItemsCatalogue.Count+1, date: DateTime.Now, question: "new question", choices: strings, solution: 0);
+            ObservableCollection<string> strings = ["new choice"];
+            QuestionItem questionItem = new QuestionItem(id: QuestionItemsCatalogue.Count+1, 
+                date: DateTime.Now, 
+                question: "new question", 
+                choices: strings, 
+                solution: 0);
 
             QuestionItemsCatalogue.Add(questionItem);
             ConnectorSQL.UpdateList(questionItem);
