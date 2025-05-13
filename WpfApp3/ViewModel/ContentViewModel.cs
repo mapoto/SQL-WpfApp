@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Data;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using WpfApp3.Model;
@@ -13,7 +14,7 @@ namespace WpfApp3.ViewModel
 {
     internal class ContentViewModel:ViewModelBase
     {
-        private const string Json = """D:\Repositories\WpfApp3\WpfApp3\Resources\login.json""";
+        private const string Json = """.\Resources\login.json""";
 
         public ContentViewModel() {
 
@@ -21,34 +22,53 @@ namespace WpfApp3.ViewModel
 
             ConnectorSQL = new ConnectAPI(auth);
 
-            QuestionItemsCatalogue = new ObservableCollection<QuestionItem>();
-            //EstablishConnection();
-            //ObservableCollection<string> strings = ["It enhances security among users", "It minimizes interference and encourage collaboration"];
-            //QuestionItem questionItem = new QuestionItem(id: 25, date: DateTime.Now, question: "Why is it important to define teritoriality in social VR?", choices: strings, solution:1);
+            ConnectButtonLabel = "Connect";
 
-            //QuestionItemsCatalogue.Add(questionItem);
+            ConnectorSQL.connection.StateChange += Connection_StateChange;
+
         }
 
-        ConnectAPI ConnectorSQL;
+        private ConnectAPI ConnectorSQL;
 
-        EditWindow editWindow;
+        private EditWindow editWindow;
 
+        private ObservableCollection<QuestionItem> originalItemsCatalogue;
+        //private QuestionItem originalQuestionItem;
+
+        #region Bound Properties
         private ObservableCollection<QuestionItem> questionItemsCatalogue;
 
-        public ObservableCollection<QuestionItem> QuestionItemsCatalogue { 
-            get=> questionItemsCatalogue; 
-            set { questionItemsCatalogue = value; OnPropertyChanged(); } }
+        public ObservableCollection<QuestionItem> QuestionItemsCatalogue
+        {
+            get => questionItemsCatalogue;
+            set { questionItemsCatalogue = value; OnPropertyChanged(); }
+        }
 
         private int selectedChoiceIndex;
 
-        public int SelectedChoiceIndex { get => selectedChoiceIndex; set { selectedChoiceIndex = value; OnPropertyChanged(); } }
+        public int SelectedChoiceIndex
+        {
+            get => selectedChoiceIndex;
+            set { selectedChoiceIndex = value; OnPropertyChanged(); }
+        }
 
         private QuestionItem selectedQuestionItem;
 
         public QuestionItem SelectedQuestionItem
         {
             get { return selectedQuestionItem; }
-            set { selectedQuestionItem = value; OnPropertyChanged(); }
+            set {
+                selectedQuestionItem = value;
+                OnPropertyChanged();
+            }
+        }
+        private bool isItemChanged;
+
+        public bool IsItemChanged
+        {
+            get { return isItemChanged; }
+            set {
+                isItemChanged = value; OnPropertyChanged(); }
         }
 
         private string selectedChoice;
@@ -59,23 +79,97 @@ namespace WpfApp3.ViewModel
             set { selectedChoice = value; OnPropertyChanged(); }
         }
 
+        private string connectButtonLabel;
+
+        public string ConnectButtonLabel
+        {
+            get => connectButtonLabel;
+            set { connectButtonLabel = value; OnPropertyChanged(); }
+        }
+
+
+        private string statusMessage;
+
+        public string StatusMessage { 
+            get => statusMessage;
+            set { statusMessage = value; OnPropertyChanged(); }
+        }
+
+        #endregion
+
+
+        private bool CheckQuestionItemChange()
+        {
+
+            if (selectedQuestionItem != null && selectedChoiceIndex >= 0)
+            {
+                QuestionItem questionItem = originalItemsCatalogue[selectedChoiceIndex];
+                return !questionItem.Equals(selectedQuestionItem);
+            }
+            else 
+                return false;
+        }
+        private void Connection_StateChange(object sender, StateChangeEventArgs e)
+        {
+            StatusMessage = ConnectorSQL.statusMessage;
+        }
+
+
+        #region Relay Commands
+
         public RelayCommand EstablishConnectionCommand => new RelayCommand(
             _execute => EstablishConnection(), 
             _canExecuteFunc=> ConnectorSQL!=null);
         private void EstablishConnection()
         {
-            ConnectorSQL.Connect();
-            QuestionItemsCatalogue = ConnectorSQL.QuestionsList;
+
+            if (ConnectorSQL.isConnected)
+            {
+                ConnectorSQL.Close();
+            }
+
+            else
+            {
+                ConnectorSQL.Connect();
+            }
+
+            RefreshUIElements();
         }
 
-        public RelayCommand AddChoiceCommand => new RelayCommand(_execute => AddChoice());
+
+        private void RefreshUIElements()
+        {
+
+            if (ConnectorSQL.isConnected)
+            {
+                ConnectButtonLabel = "Disconnect";
+                QuestionItemsCatalogue = ConnectorSQL.QuestionsList;
+                originalItemsCatalogue = new(QuestionItemsCatalogue);
+            }
+
+            else
+            {
+                ConnectButtonLabel = "Connect";
+                QuestionItemsCatalogue.Clear();
+                QuestionItemsCatalogue = null;
+                originalItemsCatalogue.Clear();
+
+            }
+        }
+        public RelayCommand AddChoiceCommand => new RelayCommand(_execute => AddChoice(), _canExecute => selectedQuestionItem != null);
 
         private void AddChoice()
         {
             selectedQuestionItem.Choices.Add("new choice");
         }
+        
+        public RelayCommand DeleteChoiceCommand => new RelayCommand(_execute => DeleteChoice(), _canExecute => selectedChoice != null);
 
-        public RelayCommand AddItemCommand => new RelayCommand(_execute => AddItem());
+        private void DeleteChoice()
+        {
+            selectedQuestionItem.Choices.Remove(selectedChoice);
+        }
+
               
         
         private void EditChoice()
@@ -90,30 +184,37 @@ namespace WpfApp3.ViewModel
         }
         
         public RelayCommand EditChoiceCommand => new RelayCommand(_execute => EditChoice(), _canExecuteCommand => selectedChoice != null);
-      
+
+        public RelayCommand AddItemCommand => new RelayCommand(_execute => AddItem(), _canExecuteCommand => ConnectorSQL.isConnected);
+
         private void AddItem()
         {
-            ObservableCollection<string> strings = ["It enhances security among users", "It minimizes interference and encourage collaboration"];
-            QuestionItem questionItem = new QuestionItem(id: 26, date: DateTime.Now, question: "Why is it important to define teritoriality in social VR?", choices: strings, solution: 1);
+            ObservableCollection<string> strings = [""];
+            QuestionItem questionItem = new QuestionItem(id: QuestionItemsCatalogue.Count+1, date: DateTime.Now, question: "new question", choices: strings, solution: 0);
 
             QuestionItemsCatalogue.Add(questionItem);
+            ConnectorSQL.UpdateList(questionItem);
+
         }
 
         public RelayCommand RemoveItemCommand => new RelayCommand(_execute => RemoveItem(),_canExecuteCommand => SelectedQuestionItem!= null);
         private void RemoveItem()
         {
+            ConnectorSQL.RemoveItem(selectedQuestionItem);
             QuestionItemsCatalogue.Remove(selectedQuestionItem);
         }
 
-        private RelayCommand modifyItemCommand;
-        public ICommand ModifyItemCommand => modifyItemCommand ??= new RelayCommand(SaveItem);
 
-        private void SaveItem(object commandParameter)
+        public RelayCommand SaveItemCommand => new RelayCommand( _execute => SaveItem(), _canExecute => SelectedQuestionItem != null);
+
+
+        private void SaveItem()
         {
-            // send to database
+            SelectedQuestionItem.Date = DateTime.Now;
+            ConnectorSQL.UpdateList(selectedQuestionItem);
         }
 
-  
+        #endregion
     }
 }
 

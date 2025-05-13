@@ -24,11 +24,14 @@ namespace WpfApp3.View
         public QuestionItemView()
         {
             InitializeComponent();
+            Edit.IsEnabled = false;
         }
 
         private void OptionTextBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            
             Edit.IsEnabled = OptionTextBox.SelectedItem != null;
         }
+
     }
 }

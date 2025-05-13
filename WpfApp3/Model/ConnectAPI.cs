@@ -1,22 +1,24 @@
-using System;
-using System.Collections.Generic;
+using Microsoft.Data.SqlClient;
 using System.Collections.ObjectModel;
 using System.Data;
-using Microsoft.Data.SqlClient;
-using Microsoft.VisualBasic;
 using WpfApp3.Model;
-using System.Web;
 
 public class ConnectAPI
 {
-    public bool isConnected = false; 
+    public ConnectAPI(Auth auth)
+    {
+        this.auth = auth;
+        SetConnectionString();
+        connection = new SqlConnection(connectionString);
+        connection.StateChange += Connection_StateChange;
+
+    }
+
+
+    #region Class Attributes
+    public bool isConnected = false;
     public string statusMessage = string.Empty;
-
-    string tableName = "questions_collection";
-
-    private string connectionString;
-    private Auth auth;
-    private SqlConnection connection;
+    public SqlConnection connection;
 
     private ObservableCollection<QuestionItem> questionsList = new ObservableCollection<QuestionItem>();
 
@@ -27,33 +29,29 @@ public class ConnectAPI
     }
 
 
-    //public ObservableCollection<QuestionItem>? QuestionsList { get => questionsList; set; }
+    private string tableName = "questions_collection";
 
-    public ConnectAPI(Auth auth)
-    {
-        this.auth = auth;
-        SetConnectionString();
+    private string connectionString;
+    private Auth auth;
+    #endregion
 
-    }
-
+    #region Public Methods
     public void Connect()
     {
 
         try
         {
-            string sql = BuildSelectionQuery(auth);
-            connection = new SqlConnection(connectionString);
-            connection.Open();
+            if (!isConnected)
+            {
+                connection.Open();
+            }
 
-            FetchList(sql, connection);
-            isConnected = true;
-            statusMessage = $"Connected to Table: {tableName}";
+            FetchList();
 
         }
         catch (Exception)
         {
-            isConnected = false;
-            statusMessage = $"Can't establish connection to table: {tableName}";
+            statusMessage = $"Can't establish connection to table: {tableName}.";
 
             throw;
         }
@@ -63,7 +61,7 @@ public class ConnectAPI
     {
         SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
 
-        builder.DataSource = auth.serverName+","+auth.port;
+        builder.DataSource = auth.serverName + "," + auth.port;
         builder.UserID = auth.userName;
         builder.Password = auth.password;
         builder.InitialCatalog = auth.databaseName;
@@ -72,8 +70,13 @@ public class ConnectAPI
 
         connectionString = builder.ConnectionString;
     }
-    public void FetchList(string sqlQuery, SqlConnection connection)
+    public void FetchList()
     {
+        string sqlQuery = BuildSelectionQuery();
+        if (!isConnected)
+        {
+            return;
+        }
         QuestionsList?.Clear();
         using (SqlCommand command = new SqlCommand(sqlQuery, connection))
         {
@@ -94,18 +97,73 @@ public class ConnectAPI
 
             command.Dispose();
         }
-        Console.WriteLine(QuestionsList?.Count);
     }
+
+  
 
     public void Close()
     {
-        isConnected = false;
-        statusMessage = $"Connected from table: {tableName}";
-        QuestionsList?.Clear();
-        connection?.Close();
-    } 
+        if (connection.State != ConnectionState.Closed)
+        {
+            statusMessage = $"Disconnected from table: {tableName}. ";
+            QuestionsList?.Clear();
+            connection?.Close();
+        }
+    }
 
-    private string BuildSelectionQuery(Auth auth)
+    public void UpdateList(QuestionItem updated)
+    {
+        if (!isConnected)
+        {
+            return;
+        }
+
+        QuestionsList?.Clear();
+        using (SqlCommand command = BuildUpdateQuery(updated))
+        {
+            command.ExecuteNonQuery();
+
+
+            command.Dispose();
+        }
+
+        FetchList();
+    }
+
+    public void RemoveItem(QuestionItem item)
+    {
+        if (!isConnected)
+        {
+            return;
+        }
+
+        QuestionsList?.Clear();
+        using (SqlCommand command = BuildDeleteQuery(item))
+        {
+            command.ExecuteNonQuery();
+            command.Dispose();
+        }
+
+        FetchList();
+
+    }
+    #endregion
+
+    #region Private Methods
+    private void Connection_StateChange(object sender, StateChangeEventArgs e)
+    {
+
+        isConnected = e.CurrentState == ConnectionState.Open;
+        if (isConnected)
+        {
+            statusMessage = $"Connected to Table: {tableName}";
+        }
+
+        statusMessage += ($"Connection state changed from {e.OriginalState} to {e.CurrentState}.");
+    }
+
+
+    private string BuildSelectionQuery()
     {
 
         List<string> attributesSelections =
@@ -121,4 +179,42 @@ public class ConnectAPI
 
         return "Select " + selections + " from " + tableName;
     }
+
+    private SqlCommand BuildUpdateQuery(QuestionItem updated)
+    {
+
+ 
+        SqlCommand command = new SqlCommand($"UPDATE {tableName} " +
+            "SET date= @date , " +
+            "question= @question , " +
+            "choices= @choices , " +
+            "solution = @solution " +
+            "WHERE id = @id;" +
+            $"IF NOT EXISTS(SELECT 1 FROM {tableName} WHERE id = @id) " +
+            $"BEGIN " +
+            $"INSERT INTO {tableName} (id,date,question,choices,solution) " +
+            "SELECT @id,@date,@question,@choices,@solution " +
+            "END", connection);
+
+        command.Parameters.AddWithValue("@date", updated.Date);
+        command.Parameters.AddWithValue("@question", updated.Question);
+        command.Parameters.AddWithValue("@choices", string.Join(";", updated.Choices));
+        command.Parameters.AddWithValue("@solution", updated.Solution);
+        command.Parameters.AddWithValue("@id", updated.Id);
+
+
+        return command;
+
+    }
+
+    private SqlCommand BuildDeleteQuery(QuestionItem item)
+    {
+
+        SqlCommand command = new SqlCommand($"DELETE FROM {tableName} WHERE id=@id", connection);
+        command.Parameters.AddWithValue("@id", item.Id);
+
+        return command;
+    }
+
+    #endregion
 }
